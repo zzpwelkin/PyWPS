@@ -1004,12 +1004,16 @@ class Execute(Request):
             #attention to application/xml
             if output.format["mimetype"].find("text") < 0 and output.format["mimetype"].find("xml")<0:
             #complexOutput["cdata"] = 1
-                os.rename(output.value, output.value+".binary")
-                base64.encode(open(output.value+".binary"),open(output.value,"w"))
-            
-        
-        # set output value
-        complexOutput["complexdata"] = open(output.value,"r").read()
+                tmpoutputfile = tempfile.mkstemp("", "output", config.getConfigValue("server", "tempPath"))[1]
+                #os.rename(output.value, output.value+".binary")
+                base64.encode(open(output.value,'r'), open(tmpoutputfile,"w"))
+                # set output value
+                complexOutput["complexdata"] = open(tmpoutputfile,"r").read()
+                os.remove(tmpoutputfile)
+            else:
+                fobj = open(output.value,"r")
+                complexOutput["complexdata"] = fobj.read()
+                fobj.close()
 
         # remove <?xml version= ... part from beginning of some xml
         # documents

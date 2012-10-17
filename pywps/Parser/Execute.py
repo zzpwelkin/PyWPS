@@ -313,7 +313,8 @@ class Post(PostParser):
         except IndexError:
             attributes["bodyreference"] = None
 
-        attributes["type"] = "ComplexValue"
+        #attributes["type"] = "ComplexValue"
+        #attributes["type"] = ""
         attributes["asReference"] = True
         return attributes
 

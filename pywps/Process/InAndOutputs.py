@@ -380,16 +380,17 @@ class ComplexInput(Input):
         :param input: parsed input value
         """
         # if HTTP GET was performed, the type does not have to be set
-        if not input.has_key("type") and\
-                (input["value"].find("http://") == 0 or input["value"].find("http%3A%2F%2F") == 0):
+        if not input.has_key('type')  and \
+            input["value"].find("http://") == 0 or input["value"].find("http%3A%2F%2F") == 0:
             input["asReference"] = True
-
-        # download data
-        
-        if input.has_key("asReference") and input["asReference"] == True:  
             self.downloadData(input["value"])
+        elif not input.has_key('type') and \
+               input["value"].find("file://") == 0 or input["value"].find("file%3A%2F%2F") == 0:
+            import urllib
+            self.serviceLocalData( urllib.unquote(input["value"]).split("file://")[1])
         else:
             self.storeData(input["value"])
+
         return
     
     def setMimeType(self,input):
@@ -537,6 +538,15 @@ class ComplexInput(Input):
             return resp
         return
     
+    def serviceLocalData(self, path):
+        """Set data with service local data . 
+        :param path: path where the lcoal data are lying
+        """
+        self.checkMimeTypeIn(path)
+        resp = self._setValueWithOccurence(self.value, path)
+        if resp:
+            return resp
+        return
     def onProblem(self,what, why):
         """Empty method, called, when there was any problem with the input. 
         This method is replaced in Execute.consolidateInputs, basically input.onProblem = self.onInputProblem
