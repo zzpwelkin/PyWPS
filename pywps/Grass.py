@@ -2,8 +2,8 @@
 Module is here for work with GRASS GIS environmental variables and
 locations and mapsets
 """
-# Author:	Jachym Cepicky
-#        	http://les-ejk.cz
+# Author:    Jachym Cepicky
+#            http://les-ejk.cz
 # License:
 #
 # Web Processing Service implementation
@@ -69,7 +69,7 @@ class Grass:
 
     def mkMapset(self,location=None):
         """
-        Create GRASS mapset in current directory. Mapsets name is 'mapset'.
+        Create GRASS PERMANENT mapset in current directory as only at PERMANENT can reset the projection
         At the end, GRASS will believe, it has run correctly.
 
         Returns name of new created mapset. location!=None, this mapset
@@ -86,12 +86,7 @@ class Grass:
         if location == None:
             self.locationDir = self.executeRequest.workingDir
 
-            self.mapsetDir = tempfile.mkdtemp(prefix="pywps",dir=self.locationDir)
-            self.mapsetName = os.path.split(self.mapsetDir)[1]
             self.locationName = os.path.split(self.locationDir)[1]
-
-            # create new WIND file
-            self._windFile(self.mapsetName)
 
             # create mapset PERMANENT
             os.mkdir("PERMANENT")
@@ -116,32 +111,22 @@ class Grass:
             # export env. vars
             (self.gisdbase,location) = os.path.split(self.locationDir)
 
-        # GRASS creates a temp dir for the display driver.
-        # Add it to dirsToBeRemoved
-        try:
-            grassTmpDir = os.path.join(tempfile.gettempdir(),
-                                       "grass"+config.getConfigValue("grass","version")[:1]+\
-                                       "-"+os.getenv("USERNAME")+\
-                                       "-"+str(os.getpid()))
-            self.executeRequest.dirsToBeRemoved.append(grassTmpDir)
-        except :
-            pass
 
-        self.setEnv('MAPSET', self.mapsetName)
+        self.setEnv('MAPSET', "PERMANENT")
         self.setEnv('LOCATION_NAME',self.locationName)
         self.setEnv('GISDBASE', self.gisdbase)
 
         # gisrc
         gisrc = open(os.path.join(self.executeRequest.workingDir,"grassrc"),"w")
         gisrc.write("LOCATION_NAME: %s\n" % self.locationName)
-        gisrc.write("MAPSET: %s\n" % self.mapsetName)
+        gisrc.write("MAPSET: PERMANENT\n")
         gisrc.write("DIGITIZER: none\n")
         gisrc.write("GISDBASE: %s\n" % self.gisdbase)
         gisrc.write("OVERWRITE: 1\n")
         gisrc.write("GRASS_GUI: text\n")
         gisrc.close()
         
-        logging.info("GRASS MAPSET set to %s" % self.mapsetName)
+        logging.info("GRASS MAPSET set to %s" % "PERMANENT")
         logging.info("GRASS LOCATION_NAME set to %s" % self.locationName)
         logging.info("GRASS GISDBASE set to %s" % self.gisdbase)
 
@@ -171,12 +156,29 @@ class Grass:
         wind.write("""rows:       1000\n""")
         wind.write("""e-w resol:  1\n""")
         wind.write("""n-s resol:  1\n""")
+        wind.write("""top:        1\n""")
+        wind.write("""bottom:     0\n""")
+        wind.write("""cols3:      1\n""")
+        wind.write("""rows3:      1\n""")
+        wind.write("""depths:     1\n""")
+        wind.write("""e-w resol3: 1\n""")
+        wind.write("""n-s resol3: 1\n""")
+        wind.write("""t-b resol:  1\n""")
         wind.close()
         return
 
+    def _permanentFileEment(self):
+        """ Add the MYNAME and VAR file """
+        os.mkdir(os.path.join(self.locationDir, "PERMANENT", "dbf"))
+        os.mknod(os.path.join(self.locationDir, "PERMANENT", "MYNAME"))
+        var = open ( os.path.join(self.locationDir, "PERMANENT", "VAR"), 'w')
+        var.write("DB_DRIVER: dbf")
+        var.write("DB_DATABASE: $GISDBASE/$LOCATION_NAME/$MAPSET/dbf/")
+        var.close()
+        
     def setEnv(self,key,value):
         """Set GRASS environmental variables """
-        origValue = os.getenv(key)
+        #origValue = os.getenv(key)
         #REMOVED: It doesnt seem necessary
         #if origValue:
         #    value  += ":"+origValue
