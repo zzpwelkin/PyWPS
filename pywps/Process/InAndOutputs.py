@@ -379,14 +379,14 @@ class ComplexInput(Input):
 
         :param input: parsed input value
         """
+        import urllib
         # if HTTP GET was performed, the type does not have to be set
         if not input.has_key('type')  and \
-            input["value"].find("http://") == 0 or input["value"].find("http%3A%2F%2F") == 0:
+            urllib.unquote(input["value"]).find("http://") == 0 :
             input["asReference"] = True
             self.downloadData(input["value"])
         elif not input.has_key('type') and \
-               input["value"].find("file://") == 0 or input["value"].find("file%3A%2F%2F") == 0:
-            import urllib
+               urllib.unquote(input["value"]).find("file://") == 0 :
             self.serviceLocalData( urllib.unquote(input["value"]).split("file://")[1])
         else:
             self.storeData(input["value"])
