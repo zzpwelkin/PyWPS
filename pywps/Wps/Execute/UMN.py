@@ -229,13 +229,13 @@ class UMN:
                 if spatialReference:
                     
                     if spatialReference.IsProjected():
-                        authority = spatialReference.GetAuthorityName("PROJCS")
-                        code = spatialReference.GetAuthorityCode("PROJCS")
-                    else:
                         authority = spatialReference.GetAuthorityName("GEOGCS")
                         code = spatialReference.GetAuthorityCode("GEOGCS")
                         #authority = spatialReference.GetAuthorityName("PROJCS")
                         #code = spatialReference.GetAuthorityCode("PROJCS")
+                    else:
+                        authority = spatialReference.GetAuthorityName("PROJCS")
+                        code = spatialReference.GetAuthorityCode("PROJCS")
 
                 # we are able to construct something like "epsg:4326"
                     if authority and code:

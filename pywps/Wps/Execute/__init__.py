@@ -1140,7 +1140,7 @@ class Execute(Request):
                 else:
                     templateOutput["reference"] = escape(config.getConfigValue("server","outputUrl")+"/"+outName)    
                 
-                output.value = outFile
+                    output.value = outFile
 
                 # mapscript supported and the mapserver should be used for this
                 # output
