@@ -1,0 +1,35 @@
+[System]
+ WorkDir=/tmp
+ OutputDir=/tmp
+
+[GRASS]
+ GISBASE=/usr/local/grass-7.0.svn
+ GRASS_ADDON_PATH=
+ GRASS_VERSION=7.0.svn
+ Module=v.buffer
+ LOCATION=
+ LinkInput=FALSE
+ IgnoreProjection=FALSE
+ UseXYLocation=FALSE
+
+[LiteralData]
+ Identifier=distance
+ DataType=double
+ Value=200
+
+[ComplexData]
+ Identifier=input
+ MaxOccurs=1
+ PathToFile=TestData/simplePoly.gml
+ MimeType=application/xml
+ Encoding=
+ Schema=http://schemas.opengis.net/gml/2.1.2/feature.xsd
+
+[ComplexOutput]
+ Identifier=output
+ PathToFile=/tmp/simplePoly_buff.gml
+ MimeType=text/xml
+ Encoding=UTF-8
+ Schema=http://schemas.opengis.net/gml/2.1.2/feature.xsd
+
+

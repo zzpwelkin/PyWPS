@@ -1,0 +1,29 @@
+[System]
+ WorkDir=/tmp
+ OutputDir=/tmp
+
+[GRASS]
+ GISBASE=/usr/local/grass-7.0.svn
+ GRASS_ADDON_PATH=
+ GRASS_VERSION=7.0.svn
+ Module=v.out.vtk
+ LOCATION=
+ LinkInput=FALSE
+ IgnoreProjection=FALSE
+ UseXYLocation=FALSE
+
+[ComplexData]
+ Identifier=input
+ MaxOccurs=1
+ PathToFile=TestData/roadsmajor.zip
+ MimeType=application/x-zipped-shp
+ Encoding=
+ Schema=
+
+[ComplexOutput]
+ Identifier=output
+ PathToFile=/tmp/roads.vtk
+ MimeType=text/plain
+ Encoding=
+ Schema=
+

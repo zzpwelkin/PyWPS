@@ -1,0 +1,29 @@
+[System]
+ WorkDir=/tmp
+ OutputDir=/tmp
+
+[GRASS]
+ GISBASE=/usr/local/grass-7.0.svn
+ GRASS_ADDON_PATH=
+ GRASS_VERSION=7.0.svn
+ Module=v.voronoi
+ LOCATION=
+ LinkInput=FALSE
+ IgnoreProjection=FALSE
+ UseXYLocation=FALSE
+
+[ComplexData]
+ Identifier=input
+ MaxOccurs=1
+ PathToFile=TestData/random_points.kml
+ MimeType=text/xml
+ Encoding=UTF-8
+ Schema=hhttp://schemas.opengis.net/kml/2.2.0/ogckml22.xsd
+
+[ComplexOutput]
+ Identifier=output
+ PathToFile=/tmp/voronoi_diagram.kml
+ MimeType=text/xml
+ Encoding=UTF-8
+ Schema=http://schemas.opengis.net/kml/2.2.0/ogckml22.xsd
+
