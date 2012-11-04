@@ -51,7 +51,7 @@ class GrassEnvironment(ProcessLogging):
             try:
                 value = self.env[key]
                 origValue = os.getenv(key)
-                if origValue:
+                if origValue and (key != 'GISRC'):
                     value  += ":"+origValue
                 os.putenv(key,value)
                 os.environ[key] = value
