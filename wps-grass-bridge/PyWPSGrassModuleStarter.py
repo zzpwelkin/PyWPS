@@ -64,7 +64,8 @@ class PyWPSGrassModuleStarter(GrassModuleStarter):
             self._createInputOutputMaps()
             try:
                 # Temporal directory must be created at the beginning
-                self._createTemporalDir(self.inputParameter.workDir)
+                #self._createTemporalDir(self.inputParameter.workDir)
+                self._createTemporalDir(os.curdir)
                 self._setUpGrassLocation(self.inputParameter.grassGisBase, self.inputParameter.grassAddonPath)
                 # Import all data, run the module and export the data
                 # Before import check if zipped shape files are present in input and
