@@ -229,14 +229,28 @@ class PyWPSGrassModuleStarter(GrassModuleStarter):
                 data.identifier = output["identifier"]
                 try:
                     data.mimeType = output["mimetype"]
+                    if len(data.mimeType) == 0:
+                        data.mimeType = self._outputs[data.identifier].format['mimetype']
+                        log = "Missing mimeType in output {0} and set to the default mimetype {1}".format(str(output), data.mimeType)
+                        self.LogError(log)
+                        
                 except:
-                    log = "Missing mimeType in output " + str(output)
+                    log = "Missing mimeType in output {0} and set to the default mimetype {1}".format(str(output), data.mimeType)
                     self.LogError(log)
                     raise GMSError(log)
                 try:
                     # schema and encoding are not mandatory
                     data.schema = output["schema"]
                     data.encoding = output["encoding"]
+                    
+                    if len(data.schema) == 0:
+                        data.schema = self._outputs[data.identifier].format['schema']
+                        log = "Missing schema in output {0} and set to the default schema {1}".format(str(output), data.schema)
+                        self.LogError(log)
+                    if len(data.encoding) == 0:
+                        data.encoding = self._outputs[data.identifier].format['encoding']
+                        log = "Missing encoding in output {0} and set to the default encoding {1}".format(str(output), data.encoding)
+                        self.LogError(log)
                 except:
                     self.LogWarning("Missing schema and encoding")
                     pass
