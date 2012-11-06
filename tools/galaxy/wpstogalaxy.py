@@ -83,7 +83,8 @@ def TransProcesses(dir):
 def __main__(argv):
     """argv = sys.argv"""
     isformat = False
-    for index, param in enumerate(argv[1:]):
+    
+    for index, param in enumerate(argv):
         name, value = param.split('=')
         if name == "prsdir":
             os.environ.update({'PYWPS_PROCESSES':os.path.abspath(value)})
@@ -92,11 +93,10 @@ def __main__(argv):
             isformat = True
         elif name == "process":
             for p in argv:
-                fn, fv = param.split('=')
-                if name == "disfile":
+                fn, fv = p.split('=')
+                if fn == "disfile":
                     res = TransProcess(value, fv)
-                    if res != None:
-                        open(fv,'w').write(res)
+                    if res == None:
                         isformat = True
     
     "if the input format is right"
@@ -105,7 +105,7 @@ def __main__(argv):
         
 if __name__=="__main__":
     try:
-        res = __main__(sys.argv)
+        res = __main__(sys.argv[1:])
 #    except ValueError,e:
 #        print Usage()
     except BaseException,e:

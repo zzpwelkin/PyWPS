@@ -33,7 +33,7 @@
         <inputs>
             <xsl:for-each select="./*[local-name()='Input']">
                 <xsl:choose>
-                    <xsl:when test="./@minOccurs>1">
+                    <xsl:when test="./@maxOccurs>1">
                         <repeat>
                             <xsl:attribute name="name">
                                 <xsl:value-of select="./*[local-name()='Identifier']"/>
@@ -95,6 +95,7 @@
                     <xsl:value-of select=".//*[local-name()='DefaultValue']"/>
                 </xsl:attribute>
             </xsl:if>
+            <xsl:attribute name="optional">false</xsl:attribute>
             <xsl:if test="./@minOccurs=0">
                 <xsl:attribute name="optional">true</xsl:attribute>
             </xsl:if>
@@ -144,26 +145,26 @@
                         <xsl:for-each select="//*[local-name()='Input']">
                             <xsl:choose>
                                 <!-- if mort than one input-->
-                                <xsl:when test="./@minOccurs>1">
-                                    #for $input in $<xsl:value-of select="./*[local-name()='Identifier']"/>
-                                    #set input = $str($input['<xsl:value-of select="./*[local-name()='Identifier']"/>'])
+                                <xsl:when test="./@maxOccurs>1">
+                                    #for $_input in $<xsl:value-of select="./*[local-name()='Identifier']"/>
+                                    #set _indata = $str($_input['<xsl:value-of select="./*[local-name()='Identifier']"/>'])
                                     <wps1:Input>
                                         <ows1:Identifier><xsl:value-of select="./*[local-name()='Identifier']"/></ows1:Identifier>
                                         <xsl:choose>
                                             <!-- if complexdata -->
                                             <xsl:when test="count(./*[local-name()='ComplexData'])=1">
-                                                #set invalue=$open($str($input)).read()
+                                                #set invalue=$open($str($_indata)).read()
                                                 <wps1:Reference xlink:href="$invalue"/>
                                             </xsl:when>
                                             <xsl:otherwise>
                                                 <xsl:choose>
                                                     <!-- if literal data -->
                                                     <xsl:when test="count(./*[local-name()='LiteralData'])=1">
-                                                        <wps1:Data><wps1:LiteralData>$input</wps1:LiteralData></wps1:Data>
+                                                        <wps1:Data><wps1:LiteralData>$_indata</wps1:LiteralData></wps1:Data>
                                                     </xsl:when>
                                                     <!-- if boundingboxdata-->
                                                     <xsl:otherwise>
-                                                        <wps1:Data><wps1:LiteralData>$input</wps1:LiteralData></wps1:Data>
+                                                        <wps1:Data><wps1:LiteralData>$_indata</wps1:LiteralData></wps1:Data>
                                                     </xsl:otherwise>
                                                 </xsl:choose>
                                             </xsl:otherwise>
@@ -201,6 +202,17 @@
                             </xsl:choose>
                         </xsl:for-each>
                     </wps1:DataInputs>
+                    <wps1:ResponseForm>
+                        <wps1:ResponseDocument>
+                            <xsl:for-each select="//*[local-name()='Output']">
+                            <wps1:Output asReference="true">
+                                    <xsl:if test="count(./*[local-name()='ComplexOutput'])=1">
+                                        <ows1:Identifier><xsl:value-of select="./*[local-name()='Identifier']"/></ows1:Identifier>
+                                    </xsl:if>
+                            </wps1:Output>
+							</xsl:for-each>
+                        </wps1:ResponseDocument>
+                    </wps1:ResponseForm>
                 </wps1:Execute>
             </configfile>
             <xsl:for-each select="//*[local-name()='Output']">
