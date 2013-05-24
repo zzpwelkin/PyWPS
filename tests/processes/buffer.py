@@ -60,7 +60,7 @@ class Process(WPSProcess):
         featureCount = inLayer.GetFeatureCount()
         index = 0
 
-        while index < featureCount:
+        while index < featureCount-1:
             #time.sleep(1) # making things little bit slower
             self.status.set("Calculating buffer for feature %d from %d" % (index+1,featureCount),
                     (100*(index+1)/featureCount*1.0))
@@ -75,7 +75,7 @@ class Process(WPSProcess):
 
             # create output feature to the file
             outFeature = ogr.Feature(feature_def=outLayer.GetLayerDefn())
-            outFeature.SetGeometryDirectly(buff)
+            outFeature.SetGeometryDirectly(inGeometry)
             outLayer.CreateFeature(outFeature)
 
             #buff.Destroy()

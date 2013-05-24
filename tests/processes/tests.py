@@ -267,5 +267,24 @@ class returnWCS(WPSProcess):
     def execute(self):
         self.dataOut.setValue(self.dataIn.getValue()[0])
         return
+    
+class returnWFS(WPSProcess):
+    def __init__(self):
+        ##
+        # Process initialization
+        WPSProcess.__init__(self,
+            identifier = "returnWFS",
+            title="Returns image as a WFS",
+            abstract="""Returns GML as a WFS reference using mapserver""",
+            version = "1.0",
+            storeSupported = True,
+            statusSupported = True)
+         
+        self.dataIn=self.addComplexInput(identifier = 'input', title = 'GML vector to return was WCS', minOccurs = 1, maxOccurs = 1024, formats = [{'mimeType': 'text/xml', 'schema': 'http://schemas.opengis.net/gml/2.1.2/feature.xsd', 'encoding': 'UTF-8'}])
+        self.dataOut=self.addComplexOutput(identifier= 'output',title="Returned WCS. No need to set asReference=True, since process ",formats = [{'mimeType': 'text/xml', 'schema': 'http://schemas.opengis.net/gml/2.1.2/feature.xsd', 'encoding': 'UTF-8'}]) 
+        
+    def execute(self):
+        self.dataOut.setValue(self.dataIn.getValue()[0])
+        return
    
         

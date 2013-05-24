@@ -20,12 +20,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-
-from pywps import config
 import os
 import urllib2
 import logging
 import tempfile
+
+from pywps import config
+from pywps.Wps.Execute.MapServer import MapServer
 
 mapscript=False
 gdal=False
@@ -47,7 +48,7 @@ except Exception,e:
 
 
 
-class UMN:
+class UMN(MapServer):
     """
     UMN MapServer Mapscript handler
 
@@ -226,16 +227,15 @@ class UMN:
             else:
             # try to determine dataset projection using gdal/ogr
                 spatialReference = self.getSpatialReference(output,datatype)
-                if spatialReference:
-                    
+                if spatialReference: 
                     if spatialReference.IsProjected():
-                        authority = spatialReference.GetAuthorityName("GEOGCS")
-                        code = spatialReference.GetAuthorityCode("GEOGCS")
-                        #authority = spatialReference.GetAuthorityName("PROJCS")
-                        #code = spatialReference.GetAuthorityCode("PROJCS")
-                    else:
+                        #authority = spatialReference.GetAuthorityName("GEOGCS")
+                        #code = spatialReference.GetAuthorityCode("GEOGCS")
                         authority = spatialReference.GetAuthorityName("PROJCS")
                         code = spatialReference.GetAuthorityCode("PROJCS")
+                    else:
+                        authority = spatialReference.GetAuthorityName("GEOGCS")
+                        code = spatialReference.GetAuthorityCode("GEOGCS")
 
                 # we are able to construct something like "epsg:4326"
                     if authority and code:
@@ -333,12 +333,13 @@ class UMN:
         else:
             layer = self.dataset.GetLayer()
             return layer.GetExtent()
-
  
-    def save(self):
+    def save(self, output):
         """Save the mapfile to disc"""
         if self.mapObj:
             self.mapObj.save(self.mapFileName)
+            
+        return self.getReference(output)
     
     def getProjs(self):
         """Gets projections from config file and it returns a len=0 list if no projs present"""

@@ -34,3 +34,17 @@ class SecondProcess(WPSProcess):
 
     def execute(self):
         self.outdata.setValue(self.indata.getValue())
+        
+class SecondProcessMapscript(WPSProcess):
+    def __init__(self):
+        WPSProcess.__init__(self,identifier="complexRasterMapscript",
+                            title="Second Process")
+
+        self.indata = self.addComplexInput(identifier="indata",title="Complex in",
+                formats=[{"mimeType":"image/tiff"}],maxmegabites=2)
+        self.outdata = self.addComplexOutput(identifier="outdata",
+                title="Complex out",formats=[{"mimeType":"image/tiff"}],
+                useMapscript=True)
+
+    def execute(self):
+        self.outdata.setValue(self.indata.getValue())

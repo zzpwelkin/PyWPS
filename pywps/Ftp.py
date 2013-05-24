@@ -45,5 +45,3 @@ class FTP(ftplib.FTP):
     def setFileName(self, fileName):
         """"New method to set the filename which should be used on the ftp server"""
         self.fileName = fileName
-
- 

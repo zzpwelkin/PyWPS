@@ -46,6 +46,7 @@ from shutil import copyfile as COPY
 from shutil import rmtree as RMTREE
 import logging
 from pywps.Wps.Execute import UMN
+from pywps.Wps.Execute import MapServerFactory
 import pickle, subprocess
 
 from xml.sax.saxutils import escape
@@ -161,12 +162,12 @@ class Execute(Request):
 
         indicates, if there is any output, which should be returned
         directly (without final xml response document)
-
-    .. attribute :: umn
-
-        :class:`pywps.UMN.UMN`
         
-        UMN MapServer - mapscript handler
+    .. attribute :: mapserver
+    
+        :class pywps.Wps.Execute.Mapserver
+        
+        Map server instance , for saving and public spatial data
 
     .. attribute :: spawned
 
@@ -216,9 +217,7 @@ class Execute(Request):
 
     rawDataOutput = None
 
-    umn = None
-
- 
+    mapserver = None
 
     def __init__(self,wps, processes=None, spawned=False):
 
@@ -296,9 +295,8 @@ class Execute(Request):
 
         # setInput values
         self.initProcess()
-
-        if UMN.mapscript:
-            self.umn = UMN.UMN(self.process, self.getSessionId())
+            
+        self.mapserver = MapServerFactory.getServer(self.process, self.getSessionId())
 
         # check rawdataoutput against process
         if self.rawDataOutput and self.rawDataOutput not in self.process.outputs:
@@ -421,9 +419,6 @@ class Execute(Request):
                 if not self.rawDataOutput:
                     # fill outputs
                     self.processOutputs()
-                    
-                    #if self.umn:
-                    #    self.umn.save()
 
                     # Response document
                     self.response = self.templateProcessor.__str__()
@@ -971,7 +966,7 @@ class Execute(Request):
                 templateOutputs.append(templateOutput);
 
             except pywps.WPSException,e:
-               #In case we have a specific WPS exception e.g incorrect mimeType etc
+                #In case we have a specific WPS exception e.g incorrect mimeType etc
                 traceback.print_exc(file=pywps.logFile)
                 self.promoteStatus(self.failed,statusMessage=e.value,exceptioncode=e.code, locator=e.locator)
 
@@ -1149,9 +1144,13 @@ class Execute(Request):
                 #Mapserver needs the format information, therefore checkMimeType has to be called before
                 self.checkMimeTypeOutput(output)
                 
-                if self.umn and output.useMapscript:
-                    owsreference = self.umn.getReference(output)
-                    self.umn.save()
+#                if self.umn and output.useMapscript:
+#                    owsreference = self.umn.getReference(output)
+#                    self.umn.save()
+#                    if owsreference:
+#                        templateOutput["reference"] = escape(owsreference)
+                if self.mapserver:
+                    owsreference = self.mapserver.save(output)
                     if owsreference:
                         templateOutput["reference"] = escape(owsreference)
 
