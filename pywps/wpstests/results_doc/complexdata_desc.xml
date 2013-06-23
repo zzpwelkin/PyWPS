@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wps:ProcessDescriptions xmlns:wps="http://www.opengis.net/wps/1.0.0" xmlns:ows="http://www.opengis.net/ows/1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/wps/1.0.0 http://schemas.opengis.net/wps/1.0.0/wpsDescribeProcess_response.xsd" service="WPS" version="1.0.0" xml:lang="en-CA">
+    <ProcessDescription wps:processVersion="1.0" storeSupported="true" statusSupported="true">
+        <ows:Identifier>returnWCS</ows:Identifier>
+        <ows:Title>Returns image as a WCS</ows:Title>
+        <ows:Abstract>Returns image as a WCS reference using mapscript</ows:Abstract>
+        <DataInputs>
+            <Input minOccurs="1" maxOccurs="1024">
+                <ows:Identifier>input</ows:Identifier>
+                <ows:Title>Raster image to return was WCS</ows:Title>
+                <ComplexData>
+                    <Default>
+                        <Format>
+                            <MimeType>image/tiff</MimeType>
+                        </Format>
+                    </Default>
+                    <Supported>
+                        <Format>
+                            <MimeType>image/tiff</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>image/geotiff</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>application/geotiff</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>application/x-geotiff</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>image/png</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>image/gif</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>image/jpeg</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>application/x-erdas-hfa</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>application/netcdf</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>application/x-netcdf</MimeType>
+                        </Format>
+                    </Supported>
+                </ComplexData>
+            </Input>
+        </DataInputs>
+        <ProcessOutputs>
+            <Output>
+                <ows:Identifier>output</ows:Identifier>
+                <ows:Title>Returned WCS. No need to set asReference=True, since process </ows:Title>
+                <ComplexOutput>
+                    <Default>
+                        <Format>
+                            <MimeType>image/tiff</MimeType>
+                        </Format>
+                    </Default>
+                    <Supported>
+                        <Format>
+                            <MimeType>image/tiff</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>image/geotiff</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>application/geotiff</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>application/x-geotiff</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>image/png</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>image/gif</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>image/jpeg</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>application/x-erdas-hfa</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>application/netcdf</MimeType>
+                        </Format>
+                        <Format>
+                            <MimeType>application/x-netcdf</MimeType>
+                        </Format>
+                    </Supported>
+                </ComplexOutput>
+            </Output>
+        </ProcessOutputs>
+    </ProcessDescription>
+</wps:ProcessDescriptions>

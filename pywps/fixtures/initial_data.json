@@ -1,0 +1,39 @@
+[
+	{
+		"model":"pywps.topiccategory",
+		"pk":1,
+		"fields": {
+            "description": "reprojection of image or vector", 
+            "name": "Projection", 
+            "slug": "projection"
+        }
+	},
+	
+	{
+		"model":"pywps.topiccategory",
+		"pk":2,
+		"fields": {
+            "description": "registrate images", 
+            "name": "Image Registration", 
+            "slug": "image_registration"
+        }
+	},
+	{
+		"model":"pywps.topiccategory",
+		"pk":3,
+		"fields":{
+			"name":"Orthorectification",
+			"slug":"orthorectification",
+			"description":""
+		}
+	},
+	{
+		"model":"pywps.topiccategory",
+		"pk":4,
+		"fields":{
+			"name":"Miscellaneous Process",
+			"slug":"miscellaneous",
+			"description":""
+		}
+	}
+]
