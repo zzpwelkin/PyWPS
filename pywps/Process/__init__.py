@@ -709,7 +709,10 @@ class WPSProcess:
                 if isinstance(v,list) or isinstance(v,tuple):
                     return ','.join([value for value in v.value])
                 else:
-                    return str(v.value)
+                    if isinstance(v, InAndOutputs.ComplexInput):
+                        return str(os.path.abspath(v.value))
+                    else:
+                        return str(v.value)
         
             v = self.outputs.get(identifier, None)
             
@@ -717,7 +720,9 @@ class WPSProcess:
                 self.outputs[identifier].value = tempfile.mktemp(prefix="pywpsOutput",dir=curdir)
                 return os.path.abspath(self.outputs[identifier].value)
             
-            raise Exceptions.InvalidParameterValue('The process of {0} not found'.format(identifier))
+            # if this is a flag parameter
+            return None
+            #raise Exceptions.InvalidParameterValue('The process of {0} not found'.format(identifier))
     
         cmdlist = self.model.cmd.strip().split()
         cmd = [ cmdlist[0] ]
@@ -726,7 +731,7 @@ class WPSProcess:
             value = getValue(_kv[0])
             
             if len(_kv) == 1:
-                cmd.append(value)
+                cmd.append(value or _kv[0])
             else:
                 cmd.append('='.join([_kv[0], value]))
     
@@ -746,8 +751,8 @@ class WPSProcess:
                         os.remove(fname)
 
     
-    def createJob(self):
-        return self.jobcls(self)
+    def createJob(self, responseObj):
+        return self.jobcls(self, responseObj)
 
 #class NormalProcess(WPSProcess):
 #    def execute(self):

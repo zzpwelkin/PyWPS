@@ -1,8 +1,10 @@
-import subprocess, pickle, thread,traceback
+import subprocess, pickle, threading,traceback 
+import logging, time
+from contextlib import closing
+from xml.sax.saxutils import escape
 
-import pywps
-from pywps.jobs import registerJob
-from pywps.models import Jobs, STATUS
+from pywps import util
+from pywps.models import Jobs, STATUS, JOBTOWPSSTATUS
 
 class NotInitialException(Exception):
     pass
@@ -10,47 +12,24 @@ class NotInitialException(Exception):
 class Job:
     """
     base class of job. Job was used to manage the status updating of process
+    
+    @var responseObj: Response Document object that composite response document of execute request
     """
-    def __init__(self, process):
+    def __init__(self, process, responseObj):
         self._process = process
+        self._response = responseObj
         self._popen = None
         self._task = None
-        #self._task = Jobs.objects.create(process = process._process)
-        #self.Initialed()
-        
-#    def __init__(self, request_method, request, interrupt, process):
-#        """
-#        @param request_method: request method
-#        @param request: string with GET method and xml/text with POST method
-#        @param interrupt: it's should true for async request or may be stop or cancel 
-#            by user when requester is waiting process terminate 
-#        @param process: pywps.Process.WPSProcess instance
-#        """
-#        self._job_m = Jobs.objects.create(request_method = request_method, 
-#                                          request = request, interrupt = interrupt, 
-#                                          process = process._process)
     
     @property
     def status(self):
         self.InitialedCheck()
         return self._task.status
-    
-    @status.setter
-    def status(self, v):
-        self.InitialedCheck()
-        assert v in STATUS
-        self._task.status = v
-        self._task.save()
         
     @property
     def traceback(self):
         self.InitialedCheck()
-        return self._task.trackback
-    
-    @traceback.setter
-    def traceback(self, v):
-        self._task.traceback = v
-        self._task.save()
+        return self._task.traceback
         
     @property
     def error(self):
@@ -67,77 +46,114 @@ class Job:
         self.InitialedCheck()
         return self._task.interrupt
     
+    @property
+    def statusLocation(self):
+        self.InitialedCheck()
+        return self._task.statusLocation
+    
+    @property
+    def response(self):
+        self.InitialedCheck()
+        return self._task.response
+
+    def _setStatus(self, v):
+        self.InitialedCheck()
+        assert v in STATUS
+        
+        # update file of status
+        if v == 'SUCCESSED':
+            self._updateSuccessed()
+        elif v == 'FAILED':
+            self._updateFailed()
+        else:
+            self._updateOthersStatus(v)
+        
+        self._task.status = v    
+        # TODO: in the _doing thread an exception will be throwed when save
+        self._task.save()
+    
     def InitialedCheck(self):
         if not self._task or self._task.status == 'INITIALLING':
             raise NotInitialException("This job haven't initialed")
         
-    def Initial(self, request_method, request, interrupt):
+    def Initial(self, request_method, request, interrupt, statusLocation = None):
+        """
+        initial job with inputs and statuslocation file if the request is asynchromous method
+        
+        @param  interrupt: it's true if request is asynchromous and @{statusLocation} must be setted 
+        """
+        
+        if interrupt:
+            assert statusLocation
         self._task = Jobs.objects.create(request_method = request_method, 
                                          request = request, interrupt = interrupt, 
-                                         process = self._process.model)
+                                         process = self._process.model,
+                                         statusLocation = statusLocation)
         
         self._task.status = 'INITIALLING'
-        if interrupt:                
-            registerJob(self)
+        
+        if interrupt:
+            pass              
+            #settings.jobsMng.putJob(self)
+        
         self._task.status = 'INITIALED'
         
-        return self._task.status
+        return self.status
     
     def start(self):
-        self._task.status = 'STARTING'
+        self._setStatus( 'STARTING' )
 
         # get command and start execute
         cmd = self._process.getCmd()
         
+        logging.info('command of execute is {0}'.format(cmd))
+        
         self._task.cmd = pickle.dumps(cmd)
         
-        self._p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=None)
+        self._p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE )
         
-        #self._task.pickled_string = subprocess.pickle.dumps(p)
+        self._setStatus( 'EXECUTING' )
+
+        # wait for this thread terminate
+        if not self.isInterrupt:
+            while(self._p.poll() == None):
+                time.sleep(1)
         
-        # continue executing until terminate or status is not EXECUTING
-        thread.start_new_thread(self._doing, (self._p, self._process.OutputReset,) )
-        
-        self._task.status = 'EXECUTING'
+            if self._p.poll()==0:
+                (self._task.stdout, self._task.stderr) = self._p.communicate()
+                self._process.OutputReset()
+                self._setStatus( 'SUCCESSED' )
+            elif self._p.poll() == 1:
+                (self._task.stdout, self._task.stderr) = self._p.communicate()
+                self._setStatus( 'FAILED' )
+            
+        return
         
     def stop(self):
 #        p = subprocess.pickle.loads(self._task.pickled_string)
 
-        if isInterrupt and self._task.status == 'EXECUTING':
-            self._task.status = 'STOPPING'
+        if isInterrupt and self.status == 'EXECUTING':
+            self._setStatus( 'STOPPING' )
             self._p.send_signal(subprocess.signal.SIGSTOP)
-            self._task.status = 'STOPPED'
-        
-        return self._task.status
+            self._setStatus( 'STOPPED' )
+            
+        return self.status
         
     def restart(self):
-#        self._task.status = 'RESTARTING'
-#        # TODO:
-#        p = subprocess.Popen(pickle.loads(self._task.cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=None)
-#        
-#        thread.start_new_thread(self._doing, p)
-#        
-#        self._task.pickled_string = subprocess.pickle.dumps(p)
-#        res = f(*argv, **kwargvs)
-        if isInterrupt and self._task.status == 'STOPPED' or self._task.status == 'EXECUTING':
-            self._task.status = 'RESTARTING'
+        if isInterrupt and ( self.status == 'STOPPED' or self.status == 'EXECUTING'):
+            self._setStatus( 'RESTARTING' )
             self._p = subprocess.Popen(pickle.loads(self._task.cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=None)
-            self._task.status = 'RESTARTED'
+            self._setStatus( 'RESTARTED' )
             
-        return self._task.status
+        return self.status
         
     def cancel(self):
-#        self._task.status = 'CANCELLING'
-#        # TODO:
-##        p = subprocess.pickle.loads(self._task.pickled_string)
-#        p.send_signal(subprocess.signal.SIGTERM)
-#        res = f(*argv, **kwargvs)
-        if isInterrupt and self._task.status == 'EXECUTING':
-            self._task.status = 'CANCELLING'
+        if isInterrupt and (self.status != 'FAILED' or self.status != 'SUCCESSED'):
+            self._setStatus( 'CANCELLING' )
             self._p = subprocess.Popen(pickle.loads(self._task.cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=None)
-            self._task.status = 'CANCELLED'
+            self._setStatus( 'CANCELLED' )
             
-        return self._task.status
+        return self.status
         
     def _doing(self, p, post_success=None):
         """
@@ -147,19 +163,64 @@ class Job:
         @param post_success: operation method after this process execute successful 
         """
         while(p.poll() == None):
-                pass
+            time.sleep(1)
         
-        if self._task.status == 'EXECUTING':
+        if self.status == 'EXECUTING':
             if p.poll()==0:
                 (self._task.stdout, self._task.stderr) = p.communicate()
                 post_success()
-                self._task.status = 'SUCCESSED'
+                self._setStatus( 'SUCCESSED' )
             elif p.poll() == 1:
                 (self._task.stdout, self._task.stderr) = p.communicate()
-                self._task.status = 'FAILED'
+                self._setStatus( 'FAILED' )
                 
-        thread.exit_thread()
+                # TODO: need add the traceback information to Job
+        return
+        
+#    def updateStatus(self):
+#        """
+#        save response to Job and update statusLocation file for async request
+#        
+#        Note: @{self._task.status} can't change to @{self.status} 
+#        """
+#        if self._task.status == 'SUCCESSED':
+#            self._updateSuccessed()
+#        elif self._task.status == 'FAILED':
+#            self._updateFailed()
+#        else:
+#            self._updateOthersStatus()
+        
+    def _updateSuccessed(self):
+        if self.isInterrupt:
+            assert self.statusLocation
+            self._task.response = self._response.successedResponseDocument( escape(self.stdout), 
+                                                util.statusLocationFiletoUrl(self.statusLocation))
+            with closing( open(self.statusLocation, 'w') ) as f:
+                f.write(self.response)
+        else:
+            self._task.response = self._response.successedResponseDocument(escape(self.stdout))
             
+    def _updateFailed(self):
+        if self.isInterrupt:
+            self._task.response = self._response.statusResponseDocument(JOBTOWPSSTATUS['FAILED'], 
+                                escape(self.error), util.statusLocationFiletoUrl(self.statusLocation))
+            assert self.statusLocation
+            with closing( open(self.statusLocation, 'w') ) as f:
+                f.write(self.response)
+        else:
+            self._task.response = self._response.statusResponseDocument(JOBTOWPSSTATUS['FAILED'], 
+                                escape(self.error))
+        
+    def _updateOthersStatus(self, status):
+        if self.isInterrupt:
+            self._task.response = self._response.statusResponseDocument(JOBTOWPSSTATUS[status], 
+                                self.stdout, util.statusLocationFiletoUrl(self.statusLocation))
+            assert self.statusLocation
+            with closing( open(self.statusLocation, 'w') ) as f:
+                f.write(self.response)
+        else:
+            self._task.response = self._response.statusResponseDocument(JOBTOWPSSTATUS[status],
+                                self.stdout)
         
 class NormalProcessJob(Job):
     pass    

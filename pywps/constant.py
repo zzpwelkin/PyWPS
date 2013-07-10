@@ -35,10 +35,10 @@ STDS_MIMETYPES = [ {"MIMETYPE":"APPLICATION/X-GRASS-STRDS-TAR", "STDSID":"STRDS"
                            {"MIMETYPE":"APPLICATION/X-GRASS-STVDS-TAR-BZIP", "STDSID":"STVDS", "COMPRESSION":"BZIP2"}]
 
 #################### LITERAL DATA TYPE #################
-LITERALDATATYPE = [(type(False),'boolean'), (type(0),'integer'), (type(0.0),'float'), (type(''),'string'), ]
+LITERALDATATYPE = [('boolean','boolean'), ('integer','integer'), ('float','float'), ('string','string'), ]
 
 #################### UOM LIST ####################
-UOM = [('','meter'), ]
+UOM = [('*','*'), ('meter','meter'), ]
 
 #################### PROCESS TYPE LIST #############
 PROCESS_TYPE_LIST = (('pywps.jobs.jobs.NormalProcessJob', 'Normal Process'), )

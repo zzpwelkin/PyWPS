@@ -24489,7 +24489,7 @@ IDYzIDAgMCAwPC9JdGVtPgo8L0dEQUxNZXRhZGF0YT4KAAA2NTUzNQA=</wps:ComplexData>
 				<wps:Input>
 			<ows:Identifier>resize_waittime</ows:Identifier>
 			<wps:Data>
-				<wps:LiteralData>20</wps:LiteralData>
+				<wps:LiteralData>5</wps:LiteralData>
 			</wps:Data>
 		</wps:Input>
 	</wps:DataInputs>

@@ -4,13 +4,16 @@ when you run "manage.py test".
 
 Replace this with more appropriate tests for your application.
 """
-import unittest, os, datetime
+import unittest, os, datetime, time
 from contextlib import closing
-from django.test import TestCase
 from owslib import wps
 from lxml import etree
 
-from pywps import models, Pywps, METHOD_GET, METHOD_POST
+from django.test import TestCase
+from django.test import Client
+from django.core.urlresolvers import reverse
+from pywps import util, models, Pywps, METHOD_GET, METHOD_POST
+from pywps.Pywps import Pywps
 
 testPath = os.path.join(os.path.dirname(__file__), 'wpstests')
 resultsPath = os.path.join(os.path.dirname(__file__), 'wpstests', 'results_doc')
@@ -31,14 +34,34 @@ class RequestTest(TestCase):
         stringOutput = models.LiteralDataOutput.objects.create(identifier='out_string', title ='String data out', DataType='string')        
         # process
         literalprocess = models.Process.objects.create(identifier='literalprocess', title = 'Literal process', abstract='',
-                                      processVersion = '1.0', processType = 'Normal Process', storeSupported=True, 
+                                      processVersion = '1.0', processType = 'pywps.jobs.jobs.NormalProcessJob', storeSupported=True, 
                                       topiccategory = models.TopicCategory.objects.get(slug='miscellaneous'),
                                       cmd=os.path.join(processesPath, 'literalprocess.py')+' in_int in_string out_int out_string')
         literalprocess.LiteralDataInput.add(stringInput, intInput)
         literalprocess.LiteralDataOutput.add(intOutput, stringOutput)
         literalprocess.Metadata.add(mt)
                 
-        ######################## insert sync and async raster_resize process ######################       
+        ######################## insert sync raster_resize process ###################### 
+        # inputs
+        mt_rasterinput = models.Meta.objects.create(title='raster input', link='http://raster')
+        resize_input = models.ComplexData.objects.create(identifier='resize_input', title='raster will be read', Default = default_ft, minOccurs=1, maxOccurs=1, maximumMegabytes=100)
+        resize_input.Supported.add(*models.Format.objects.all())
+        resize_input.Metadata.add(mt_rasterinput)
+        resize_ow = models.LiteralDataInput.objects.create(identifier='resize_ow', title='width want to output', DataType='integer',  minOccurs=1, maxOccurs=1)
+        resize_oh = models.LiteralDataInput.objects.create(identifier='resize_oh', title='heigth want to output', DataType='integer',  minOccurs=1, maxOccurs=1)       
+        # outputs
+        resize_output = models.ComplexData.objects.create(identifier='resize_output', title = 'raster will be write', Default = default_ft, minOccurs=1, maxOccurs=1, maximumMegabytes=100)
+        resize_output.Supported.add(*models.Format.objects.all())       
+        # process
+        resizeprocess = models.Process.objects.create(identifier='raster_resize', title='raster resize', processVersion='1.0', processType='pywps.jobs.jobs.NormalProcessJob',
+                                                      topiccategory=models.TopicCategory.objects.get(slug='miscellaneous'), 
+                                                      cmd = os.path.join(processesPath, 'raster_resize.py') +' resize_input resize_ow resize_oh resize_output', 
+                                                      )
+        resizeprocess.ComplexDataInput.add(resize_input)
+        resizeprocess.LiteralDataInput.add(resize_ow, resize_oh)
+        resizeprocess.ComplexDataOutput.add(resize_output)
+        
+        ######################## insert async raster_resize process ###################### 
         # inputs
         resize_input = models.ComplexData.objects.create(identifier='resize_input', title='raster will be read', Default = default_ft, minOccurs=1, maxOccurs=1, maximumMegabytes=100)
         resize_input.Supported.add(*models.Format.objects.all())
@@ -48,16 +71,8 @@ class RequestTest(TestCase):
         # outputs
         resize_output = models.ComplexData.objects.create(identifier='resize_output', title = 'raster will be write', Default = default_ft, minOccurs=1, maxOccurs=1, maximumMegabytes=100)
         resize_output.Supported.add(*models.Format.objects.all())       
-        # process
-        resizeprocess = models.Process.objects.create(identifier='raster_resize', title='raster resize', processVersion='1.0', processType='Normal Process',
-                                                      topiccategory=models.TopicCategory.objects.get(slug='miscellaneous'), 
-                                                      cmd = os.path.join(processesPath, 'raster_resize.py') +' resize_input resize_ow resize_oh resize_output', 
-                                                      )
-        resizeprocess.ComplexDataInput.add(resize_input)
-        resizeprocess.LiteralDataInput.add(resize_ow, resize_oh)
-        resizeprocess.ComplexDataOutput.add(resize_output)
-        
-        async_resizeprocess = models.Process.objects.create(identifier='async_raster_resize', title='raster resize', processVersion='1.0', processType='Normal Process',
+        # process        
+        async_resizeprocess = models.Process.objects.create(identifier='async_raster_resize', title='raster resize', processVersion='1.0', processType='pywps.jobs.jobs.NormalProcessJob',
                                                       storeSupported=True, statusSupported = True, topiccategory=models.TopicCategory.objects.get(slug='miscellaneous'), 
                                                       cmd = os.path.join(processesPath, 'raster_resize.py') +' resize_input resize_ow resize_oh resize_output resize_waittime', 
                                                       )
@@ -69,8 +84,40 @@ class RequestTest(TestCase):
         self.process_num = 3
         
     def tearDown(self):
-        literalprocess = models.Process.objects.get(identifier='literalprocess')
-        literalprocess.delete()
+        for process in models.Process.objects.all():
+            process.delete_recursive()
+
+        
+    def test_process_delete(self):
+        """
+        test if it's have delete all the records about this process
+        """
+        self.assertEqual(3, len(models.Process.objects.all()) )
+        self.assertEqual(2, len(models.Meta.objects.all()) )
+        self.assertEqual(4 , len(models.ComplexData.objects.all()) )
+        self.assertEqual(7, len(models.LiteralDataInput.objects.all()) )
+        self.assertEqual(2, len(models.LiteralDataOutput.objects.all()) )
+        
+        literalprocess = models.Process.objects.get(identifier = 'literalprocess')
+        literalprocess.delete_recursive()
+        self.assertEqual(1, len(models.Meta.objects.all()) )
+        
+        rasterresize = models.Process.objects.get(identifier = 'raster_resize')
+        rasterresize.delete_recursive()
+        self.assertTrue(not models.Meta.objects.all(), 'the metadata should be cleared but {0} also exits'.format(str(models.Meta.objects.all())))
+            
+        self.assertEqual(2 , len(models.ComplexData.objects.all()) )
+        self.assertEqual(3, len(models.LiteralDataInput.objects.all()) )
+        self.assertTrue(not models.LiteralDataOutput.objects.all())
+        async_rasterresize = models.Process.objects.get(identifier = 'async_raster_resize')
+        async_rasterresize.delete_recursive()
+        
+        self.assertTrue(not models.LiteralDataInput.objects.all())
+        self.assertTrue(not models.ComplexData.objects.all())
+        
+        self.assertTrue(models.Format.objects.all())
+        for f in models.Format.objects.all():
+            f.delete()
         
     def test_process_notexit_exception(self):
         """
@@ -108,6 +155,11 @@ class RequestTest(TestCase):
         self.assertEqual('literalprocess', prs.identifier)
         self.assertEqual('1.0', prs.processVersion)
         
+        # test client request
+        c = Client()
+        response = c.get(reverse('wps_service'),  {'service':'wps', 'version':'1.0.0', 'request':'getcapabilities', })
+        self.assertEqual(mywps.response, response.content)
+        
     def test_decribeprocess(self):
         """
         Tests DescribeProcess of WPS
@@ -139,6 +191,11 @@ class RequestTest(TestCase):
             outputs[output.identifier] = output
         self.assertEquals( ('//www.w3.org/TR/xmlschema-2/#string', '//www.w3.org/TR/xmlschema-2/#integer'), (outputs['out_string'].dataType, outputs['out_int'].dataType) )
             
+        # test client request
+        c = Client()
+        response = c.get(reverse('wps_service'), {'service':'wps', 'version':'1.0.0', 'request':'describeprocess','identifier':'literalprocess' })
+        self.assertEqual(mywps.response, response.content)
+        
     def test_literal_execute(self):
         """
         Tests Execute of WPS with literal inputs and ouputs
@@ -147,12 +204,12 @@ class RequestTest(TestCase):
         mywps = Pywps(METHOD_GET)
         mywps.parseRequest(request)
         mywps.performRequest()
-                
+        
         execution = wps.WPSExecution()
         execution.parseResponse(wps.WPSExecuteReader().readFromString(mywps.response))
         
         # successful assert 
-        self.assert_(execution.isSucceded())
+        self.assert_(execution.isSucceded(), mywps.response)
         
         outputs = {}
         for ot in execution.processOutputs:
@@ -183,6 +240,12 @@ class RequestTest(TestCase):
         
         self.assertRegexpMatches(ot.data[0], '^SUkqAA.*')
         
+    def test_lineage_execute(self):
+        """
+        Test response document with lineage flag request
+        """
+        pass
+        
     def test_async_complex_execute(self):
         """
         Tests async request
@@ -193,13 +256,92 @@ class RequestTest(TestCase):
             mywps.parseRequest(f)
             
         mywps.performRequest()
+                
+        execution = wps.WPSExecution()
+        execution.parseResponse(wps.WPSExecuteReader().readFromString(mywps.response))
         
-        self.assertEqual('', mywps.response)
+        self.assert_(not execution.isComplete(), mywps.response)
+        self.assertEqual('ProcessStarted', execution.status)
+        self.assertTrue(execution.statusLocation)
+        
+        # waite for complete
+        time.sleep(6)
+        response = open(util.statusLocationUrltoFile(execution.statusLocation)).read()
+        execution.parseResponse(wps.WPSExecuteReader().readFromString(response))
+        
+        execution2 = wps.WPSExecution()
+        execution2.parseResponse(wps.WPSExecuteReader().readFromString(response))
+        self.assert_(execution2.isSucceded(), response)
+        
+    def test_jobs_list(self):
+        pass
+    
+    def test_job_cancel(self):
+        """
+        There are two scene for this test. 
+        1. if a job has terminate no matter successed or failed. the response document status should be the one as previous
+        2. Cancel a job , the status should be failed with cancel message
+        """
+        pass
+    
+    def test_job_stop(self):
+        """
+        There are two scene for this test. 
+        1. Cancel a job with executing. the response document status should be paused
+        2. Cancel a job with others status, the response document status should be the one as previous
+        """
+        pass
+    
+    def test_job_restart(self):
+        pass
+    
+class RequestTestWithFlag(TestCase):
+    def setUp(self):
+        # format
+        default_ft = models.Format.objects.create(mimeType="IMAGE/TIFF")                
+        ######################## gdal_translate process ######################       
+        # inputs
+        resize_input = models.ComplexData.objects.create(identifier='src_dataset', title='raster will be read', Default = default_ft, minOccurs=1, maxOccurs=1, maximumMegabytes=100)
+        resize_input.Supported.add(*models.Format.objects.all())
+        resize_ow = models.LiteralDataInput.objects.create(identifier='ysize', title='width want to output', DataType='integer',  minOccurs=1, maxOccurs=1)
+        resize_oh = models.LiteralDataInput.objects.create(identifier='xsize', title='heigth want to output', DataType='integer',  minOccurs=1, maxOccurs=1)    
+        # outputs
+        resize_output = models.ComplexData.objects.create(identifier='dst_dataset', title = 'raster will be write', Default = default_ft, minOccurs=1, maxOccurs=1, maximumMegabytes=100)
+        resize_output.Supported.add(*models.Format.objects.all())       
+        # process
+        gdal_translate = models.Process.objects.create(identifier='gdal_translate', title='raster resize', processVersion='1.0', processType='pywps.jobs.jobs.NormalProcessJob',
+                                                      storeSupported=True, statusSupported = True, topiccategory=models.TopicCategory.objects.get(slug='miscellaneous'), 
+                                                      cmd = 'gdal_translate -outsize xsize ysize src_dataset dst_dataset', 
+                                                      )
+        gdal_translate.ComplexDataInput.add(resize_input)
+        gdal_translate.LiteralDataInput.add(resize_ow, resize_oh)
+        gdal_translate.ComplexDataOutput.add(resize_output)
+        
+        # the number of process
+        self.process_num = 1
+        
+    def tearDown(self):
+        gdal_translate = models.Process.objects.get(identifier='gdal_translate')
+        gdal_translate.delete_recursive()
+        
+    def test_execute(self):
+        """
+        Tests raw raster complexdata execute
+        """
+        mywps = Pywps(METHOD_POST)
+        
+        with closing(open(os.path.join(requestsPath, 'wps_execute_request-gdal_translate.xml'), 'r')) as f:
+            mywps.parseRequest(f)
+            
+        mywps.performRequest()
                 
         execution = wps.WPSExecution()
         execution.parseResponse(wps.WPSExecuteReader().readFromString(mywps.response))
         
         self.assert_(execution.isSucceded(), mywps.response)
         
+        outputs = {}
+        for ot in execution.processOutputs:
+            outputs[ot.identifier] = ot
         
-        
+        self.assertRegexpMatches(ot.data[0], '^SUkqAA.*')

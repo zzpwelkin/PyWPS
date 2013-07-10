@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-from osgeo import gdal
 import time
+import numpy
+from osgeo import gdal
 def execute(input, ow, oh, output):
     dataset = gdal.Open(input)
     
@@ -19,6 +20,6 @@ def execute(input, ow, oh, output):
 if __name__ == "__main__":
     import sys 
     if (len(sys.argv) == 6):
-        time.sleep(int(sys.argv[7]))
+        time.sleep(int(sys.argv[5]))
         
     execute(sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4])

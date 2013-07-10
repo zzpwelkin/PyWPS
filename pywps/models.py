@@ -11,6 +11,9 @@ from pywps.Process import WPSProcess
 logger = logging.getLogger(__file__)
 
 STATUS = ('INITIALLING', 'INITIALED', 'STARTING', 'EXECUTING', 'STOPPING', 'STOPPED', 'RESTARTING', 'CANCELLING', 'CANCELED', 'FAILED', 'SUCCESSED', )
+JOBTOWPSSTATUS = {'INITIALLING':'processpaused', 'INITIALED':'processaccepted', 'STARTING':'processaccepted', 'EXECUTING':'processstarted',
+                  'STOPPING':'processstarted', 'STOPPED':'processpaused', 'RESTARTING':'processpaused', 'CANCELLING':'processstarted', 'CANCELED':'processfailed', 
+                  'FAILED':'processfailed', 'SUCCESSED':'processsucceeded', }
 
 class TopicCategory(models.Model):
     name = models.CharField(max_length=50)
@@ -64,20 +67,43 @@ class ValueReference(models.Model):
     """
     References an externally defined finite set of values and ranges for this input 
     """
-    reference = models.URLField(help_text = 'URL from which this set of ranges and values can be retrieved ', null=False, blank=False)
+    reference = models.URLField(help_text = 'URL from which this set of ranges and values can be retrieved ', null=True, blank=True)
     valuesForm = models.URLField(help_text = 'Reference to a description of the mimetype, encoding, and schema'+
-                                 'used for this set of values and ranges', null=False, blank=False)  
+                                 'used for this set of values and ranges', null=True, blank=True)  
     def __unicode__(self):
         return self.reference
 
 class ProcessBase(models.Model):
     identifier = models.CharField(max_length=20, null=False, blank=False)
     title = models.CharField(max_length=200, null = False, blank=False)
-    abstract = models.TextField(null=True)
-    Metadata = models.ManyToManyField(Meta, null=True)
+    abstract = models.TextField(null=True, blank = True)
+    Metadata = models.ManyToManyField(Meta, null=True, blank = True)
     
     def __unicode__(self):
         return self.identifier
+    
+    def delete_recursive(self, using=None, exclude = ()):
+        """
+        this delete method will delete all records in manytomany fields
+        
+        @param exclude: the manytomany fields name that which records needn't be deleted
+        """
+        # disassociate the relation of manytomany field to this process and delete them
+        for _m2m in self._meta.many_to_many:
+            if _m2m.name in exclude:
+                continue
+            _f = self.__getattribute__(_m2m.name)
+            for _r in _f.all():
+                if hasattr(_r, 'delete_recursive'):
+                    _r.delete_recursive()
+                else:
+                    if _r._meta.many_to_many:
+                        logger.warning("this fiels {0} have manytomany fiels {1} but not be "+
+                                       "deleted recursive, and some redundancy data will be in db", 
+                                       str(_r), str(_r._meta.many_to_many))
+                    _r.delete()
+            _f.clear()
+        ProcessBase.delete(self, using=using)
     
     def getMetadata(self):
         """
@@ -116,8 +142,8 @@ class Input(ProcessBase):
     """
     defaultValue: the value format will be different with dataType changed
     """
-    minOccurs = models.IntegerField(null=False, blank=False, help_text = 'Minimum number of times that values for this parameter are required')
-    maxOccurs = models.IntegerField(null = False, blank = False, help_text = 'Maximum number of times that this parameter may be present')
+    minOccurs = models.IntegerField(null=False, blank=False, default = 1, help_text = 'Minimum number of times that values for this parameter are required')
+    maxOccurs = models.IntegerField(null = False, blank = False, default = 1, help_text = 'Maximum number of times that this parameter may be present')
     
     def getValueinDict(self):
         """
@@ -140,9 +166,12 @@ class Input(ProcessBase):
 class ComplexData(Input):
     Default = models.ForeignKey(Format, null=False, blank=False, related_name = 'Default')
     Supported = models.ManyToManyField(Format, null=False, blank=False, related_name = 'Supported')
-    maximumMegabytes = models.IntegerField(help_text='The maximum file size, in megabytes, of this input.'+
+    maximumMegabytes = models.IntegerField(default = 1000, help_text='The maximum file size, in megabytes, of this input.'+
                                            ' If the input exceeds this size, the server will return an error' +
                                            ' instead of processing the inputs. ')
+    
+    def delete_recursive(self, using=None):
+        Input.delete_recursive(self, using=using, exclude=('Supported',))
     
     def getDefaultFormat(self):
         return Default.getFormat()
@@ -165,9 +194,9 @@ class ComplexData(Input):
         return v
 
 class LiteralDataOutput(ProcessBase):
-    DataType = models.CharField(max_length = 10, choices = LITERALDATATYPE, null = False, blank = False)
-    UOM_Default = models.CharField(max_length = 10, choices = UOM)
-    UOM_Supported = models.TextField()
+    DataType = models.CharField(max_length = 10, choices = LITERALDATATYPE, null = True, blank = True)
+    UOM_Default = models.CharField(max_length = 10, choices = UOM, blank=True, null=True)
+    UOM_Supported = models.TextField(blank=True, null=True)
     
     def getUOMSupported(self):
         if self.UOM_Supported:
@@ -179,16 +208,16 @@ class LiteralDataOutput(ProcessBase):
         return TYPE_MAP[self.DataType]
     
 class LiteralDataInput(Input):
-    DataType = models.CharField(max_length = 10, choices = LITERALDATATYPE, null = False, blank = False)
-    DefaultValue = models.CharField(max_length = 50)
+    DataType = models.CharField(max_length = 10, choices = LITERALDATATYPE)
+    DefaultValue = models.CharField(max_length = 50, null=True, blank = True)
     UOM_Default = models.CharField(max_length = 10, choices = UOM)
-    UOM_Supported = models.TextField()
-    ValueReference = models.ForeignKey(ValueReference, null=True)
-    AllowedValues = models.TextField(null=True, blank = False)
+    UOM_Supported = models.TextField(null=True, blank = True)
+    ValueReference = models.ForeignKey(ValueReference, null=True, blank=True)
+    AllowedValues = models.TextField(null=True, blank = True)
     
     def getUOMSupported(self):
         if self.UOM_Supported:
-            return UOM_Supported.split(';')
+            return self.UOM_Supported.split(';')
         else:
             return []
     
@@ -227,26 +256,26 @@ class Process(ProcessBase):
     statusSupported = models.BooleanField(default=False, help_text = 'ndicates if Execute operation response can be returned quickly withstatus information')
     
     # input
-    ComplexDataInput = models.ManyToManyField(ComplexData, null = True, related_name='ComplexDataInput')
-    LiteralDataInput = models.ManyToManyField(LiteralDataInput, null = True, )
-    BoundingBoxDataInput = models.ManyToManyField(BoundingBoxData, null=True, related_name='BoundingBoxDataInput')
+    ComplexDataInput = models.ManyToManyField(ComplexData, null = True, blank = True, verbose_name = 'complexdata inputs',related_name='ComplexDataInput_set')
+    LiteralDataInput = models.ManyToManyField(LiteralDataInput, null = True, blank = True, related_name='LiteralDataInput_set')
+    BoundingBoxDataInput = models.ManyToManyField(BoundingBoxData, null=True, blank = True, related_name='BoundingBoxDataInput_set')
     
     # output
-    ComplexDataOutput = models.ManyToManyField(ComplexData, null=True, related_name='ComplexDataOutput')
-    LiteralDataOutput = models.ManyToManyField(LiteralDataOutput, null=True)
-    BoundingBoxDataOutput = models.ManyToManyField(BoundingBoxData, null=True, related_name='BoundingBoxDataOutput')
+    ComplexDataOutput = models.ManyToManyField(ComplexData, null=True, blank = True, related_name='ComplexDataOutput_set')
+    LiteralDataOutput = models.ManyToManyField(LiteralDataOutput, null=True,blank = True, related_name='LiteralDataOutput_set')
+    BoundingBoxDataOutput = models.ManyToManyField(BoundingBoxData, null=True, blank = True, related_name='BoundingBoxDataOutput_set')
     
     # other information wasn't defined in OGC WPS specification
-    processType = models.CharField(max_length = 20, choices = PROCESS_TYPE_LIST)
+    processType = models.CharField(max_length = 100, choices = PROCESS_TYPE_LIST)
     created_time = models.DateField(auto_now_add=True)
     recent_changed_time = models.DateField(auto_now=True)
     topiccategory = models.ForeignKey(TopicCategory)
-    cmd = models.CharField(max_length=200, null=None)
+    cmd = models.CharField(max_length=200)
     
     def getProcessClass(self):
         prsClass = None
         for cls in PROCESS_TYPE_LIST:
-            if cls[1] == self.processType:
+            if cls[0] == self.processType:
                 relative_path = cls[0].split('.')
                 mdClass = __import__('.'.join(relative_path[:-1]), fromlist=('.'.join(relative_path[:-1])) )
                 prsClass = mdClass.__getattribute__(relative_path[-1])
@@ -308,12 +337,13 @@ class Jobs(models.Model):
     update_time = models.DateField(auto_now=True)
     request_method = models.CharField(max_length=15, choices=(('REQUEST_GET','get'), ('REQUEST_POST','post'),))
     request = models.TextField()
-    response = models.TextField(blank=False)
+    response = models.TextField(null=True)
     stdout = models.TextField(null=True, blank=True)
     stderr = models.TextField(null=True, blank=True)
     traceback = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=15, choices=((statu, str.lower(statu)) for statu in STATUS ))
-    interrupt = models.BooleanField( help_text="if can be interrupt of this job.It's true and false for aysnc and sync request respectively") 
+    interrupt = models.BooleanField( help_text="if can be interrupt of this job.It's true and false for async and sync request respectively") 
+    statusLocation = models.FilePathField(null=True, help_text="file that storing status information of execute with async request. So, it's will be Null with sync request")
     
     process = models.ForeignKey(Process)
     cmd = models.TextField(null=True, help_text = 'executabled string used by Popen')
